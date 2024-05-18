@@ -1,11 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use bevy::core::Name;
+use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugins(
+            WorldInspectorPlugin::new().run_if(input_toggle_active(false, KeyCode::Escape)),
+        )
         .add_plugins(NoCameraPlayerPlugin)
         .insert_resource(MovementSettings {
             sensitivity: 0.00018,
@@ -17,10 +23,13 @@ fn main() {
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let lantern = asset_server.load("models/Building_Brutalist_TriCorner.glb#Scene0");
-    commands.spawn(SceneBundle {
-        scene: lantern,
-        ..default()
-    });
+    commands.spawn((
+        SceneBundle {
+            scene: lantern,
+            ..default()
+        },
+        Name::new("Building"),
+    ));
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
