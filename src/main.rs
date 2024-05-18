@@ -22,10 +22,19 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let lantern = asset_server.load("models/Building_Brutalist_TriCorner.glb#Scene0");
+    let lantern = asset_server.load("models/Lantern.glb#Scene0");
     commands.spawn((
         SceneBundle {
             scene: lantern,
+            transform: Transform::from_xyz(-50.0, 0.0, 0.0),
+            ..default()
+        },
+        Name::new("Lantern"),
+    ));
+    let building = asset_server.load("models/Building_Brutalist_TriCorner.glb#Scene0");
+    commands.spawn((
+        SceneBundle {
+            scene: building,
             ..default()
         },
         Name::new("Building"),
