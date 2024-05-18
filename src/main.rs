@@ -1,39 +1,32 @@
 use bevy::prelude::*;
 
-#[derive(Component)]
-struct Person;
-
-#[derive(Component)]
-struct Name(String);
-
 fn main() {
     App::new()
-        .add_systems(Startup, add_people)
-        .add_systems(Update, (hello_world, (update_people, greet_people).chain()))
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, setup)
         .run();
 }
 
-fn add_people(mut commands: Commands) {
-    commands.spawn((Person, Name("Elaina Proctor".to_string())));
-    commands.spawn((Person, Name("Renzo Hume".to_string())));
-    commands.spawn((Person, Name("Zayna Nieves".to_string())));
-}
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let lantern = asset_server.load("models/Lantern.glb#Scene0");
+    commands.spawn(SceneBundle {
+        scene: lantern,
+        ..default()
+    });
 
-fn update_people(mut query: Query<&mut Name, With<Person>>) {
-    for mut name in &mut query {
-        if name.0 == "Elaina Proctor" {
-            name.0 = "Elaina Hume".to_string();
-            break; // We don’t need to change any other names
-        }
-    }
-}
+    commands.spawn(PointLightBundle {
+        point_light: PointLight {
+            intensity: 3_000_000.0,
+            shadows_enabled: true,
+            ..default()
+        },
+        transform: Transform::from_xyz(12.0, 14.0, 6.0),
+        ..default()
+    });
 
-fn hello_world() {
-    println!("hello world!");
-}
-
-fn greet_people(query: Query<&Name, With<Person>>) {
-    for name in &query {
-        println!("hello {}!", name.0);
-    }
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(40.0, 20.0, 20.0)
+            .looking_at(Vec3::new(0.0, 12.0, 0.0), Vec3::Y),
+        ..default()
+    });
 }
