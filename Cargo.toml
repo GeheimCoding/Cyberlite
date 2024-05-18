@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.13.2", features = ["dynamic_linking"] }
-# note: remove dynamic linking before releasing
-# bevy = "0.13.2"
+bevy = "0.13.2"
+
+[features]
+dynamic_linking = ["bevy/dynamic_linking"]
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
