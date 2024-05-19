@@ -9,25 +9,25 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      version: ${{ steps.semvers.outputs.minor }}
+      version: ${{ steps.next.outputs.minor }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-dept: 0
+          fetch-depth: 0
 
       - name: Get previous tag
         id: previous
         uses: WyriHaximus/github-action-get-previous-tag@v1
         with:
-          fallback: 0.1.0
+          fallback: 0.0.0
 
       - name: Get next minor version
         id: next
         uses: WyriHaximus/github-action-next-semvers@v1
         with:
-          version: ${{ steps.previous.output.tag }}
+          version: ${{ steps.previous.outputs.tag }}
 
   build-and-upload:
     name: Build and upload
@@ -43,6 +43,6 @@ jobs:
       - name: Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ needs.generate-version.outputs.version }}
+          tag: v${{ needs.generate-version.outputs.version }}
           generateReleaseNotes: true
           artifacts: LICENSE
