@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-version:
+    name: Generate version
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.semvers.outputs.minor }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-dept: 0
+
+      - name: Get previous tag
+        id: previous
+        uses: WyriHaximus/github-action-get-previous-tag@v1
+        with:
+          fallback: 0.1.0
+
+      - name: Get next minor version
+        id: next
+        uses: WyriHaximus/github-action-next-semvers@v1
+        with:
+          version: ${{ steps.previous.output.tag }}
+
+  build-and-upload:
+    name: Build and upload
+    runs-on: windows-latest
+    needs: generate-version
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ needs.generate-version.outputs.version }}
+          generateReleaseNotes: true
+          artifacts: LICENSE
