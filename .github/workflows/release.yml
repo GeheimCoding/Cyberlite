@@ -3,6 +3,10 @@ name: Release
 on:
   workflow_dispatch:
 
+env:
+  BINARY_NAME: cyberlite
+  CARGO_TERM_COLOR: always
+
 jobs:
   generate-version:
     name: Generate version
@@ -21,7 +25,7 @@ jobs:
         id: previous
         uses: WyriHaximus/github-action-get-previous-tag@v1
         with:
-          fallback: 0.0.0
+          fallback: v0.0.0
 
       - name: Get next minor version
         id: next
@@ -40,9 +44,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # TODO: make binary as fast/small as possible, e.g. with strip
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - name: Compress
+        shell: pwsh
+        run: |
+          Move-Item -Path target/release/${{ env.BINARY_NAME }}.exe -Destination ${{ env.BINARY_NAME }}.exe
+          7z a -tzip ${{ env.BINARY_NAME }}.zip assets ${{ env.BINARY_NAME }}.exe
+
       - name: Release
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ needs.generate-version.outputs.version }}
           generateReleaseNotes: true
-          artifacts: LICENSE
+          artifacts: ${{ env.BINARY_NAME }}.zip
