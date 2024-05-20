@@ -5,6 +5,9 @@ use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use rand::Rng;
+use std::ffi::OsStr;
+use std::fs;
 
 fn main() {
     App::new()
@@ -22,23 +25,31 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let lantern = asset_server.load("models/Lantern.glb#Scene0");
-    commands.spawn((
-        SceneBundle {
-            scene: lantern,
-            transform: Transform::from_xyz(-50.0, 0.0, 0.0),
-            ..default()
-        },
-        Name::new("Lantern"),
-    ));
-    let building = asset_server.load("models/Building_Brutalist_TriCorner.glb#Scene0");
-    commands.spawn((
-        SceneBundle {
-            scene: building,
-            ..default()
-        },
-        Name::new("Building"),
-    ));
+    let mut rng = rand::thread_rng();
+    let models = fs::read_dir("assets/models").expect("expected models folder inside assets");
+    for model in models {
+        if let Ok(model) = model {
+            if let Some(Some("glb")) = model.path().extension().map(OsStr::to_str) {
+                let name = model.file_name();
+                let name =
+                    String::from(&name.to_str().expect("expected valid unicode")[..name.len() - 4]);
+                let model = asset_server.load(format!("models/{name}.glb#Scene0"));
+
+                commands.spawn((
+                    SceneBundle {
+                        scene: model,
+                        transform: Transform::from_xyz(
+                            rng.gen_range(-50.0..50.0),
+                            0.0,
+                            rng.gen_range(-50.0..50.0),
+                        ),
+                        ..default()
+                    },
+                    Name::new(name),
+                ));
+            }
+        }
+    }
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
