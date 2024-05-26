@@ -6,7 +6,6 @@ use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
 use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use rand::Rng;
 use std::ffi::OsStr;
 use std::fs;
 
@@ -19,7 +18,7 @@ fn main() {
         .add_plugins(NoCameraPlayerPlugin)
         .insert_resource(MovementSettings {
             sensitivity: 0.00018,
-            speed: 42.0,
+            speed: 180.0,
         })
         .add_systems(Startup, setup)
         .add_systems(PreUpdate, process_models)
@@ -27,7 +26,6 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let mut rng = rand::thread_rng();
     let models = fs::read_dir("assets/models").expect("expected models folder inside assets");
     for model in models {
         if let Ok(model) = model {
@@ -40,11 +38,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 commands.spawn((
                     SceneBundle {
                         scene: model,
-                        transform: Transform::from_xyz(
-                            rng.gen_range(-50.0..50.0),
-                            0.0,
-                            rng.gen_range(-50.0..50.0),
-                        ),
                         ..default()
                     },
                     Name::new(name),
@@ -65,8 +58,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn((
         Camera3dBundle {
-            transform: Transform::from_xyz(40.0, 70.0, 80.0)
-                .looking_at(Vec3::new(0.0, 20.0, 0.0), Vec3::Y),
+            transform: Transform::from_xyz(200.0, 80.0, 100.0)
+                .looking_at(Vec3::new(100.0, 40.0, 0.0), Vec3::Y),
             ..default()
         },
         FlyCam,
@@ -77,6 +70,7 @@ fn process_models(
     scenes: ResMut<Assets<Scene>>,
     mut events: EventReader<AssetEvent<Scene>>,
     mut query: Query<(&Handle<Scene>, &Name, &mut Transform)>,
+    mut counter: Local<u32>,
 ) {
     for event in events.read() {
         if let AssetEvent::LoadedWithDependencies { id } = event {
@@ -85,16 +79,16 @@ fn process_models(
                     let scene = scenes.get(*id).expect("should be loaded at this point");
                     let (aabb, base_translation) = calculate_aabb(scene);
                     let scale_factor = 42.0 / aabb.half_extents.max_element();
-                    let center = (Vec3::from(aabb.center) + base_translation) * -scale_factor;
+                    let offset = (Vec3::from(aabb.center) + base_translation) * -scale_factor;
 
                     println!(
                         "{name} - {} - {} -> {scale_factor}",
                         aabb.center,
                         aabb.half_extents * 2.0
                     );
-
                     transform.scale = Vec3::splat(scale_factor);
-                    transform.translation = center;
+                    transform.translation = Vec3::new(0.0, 0.0, *counter as f32 * -100.0) + offset;
+                    *counter += 1;
                     break;
                 }
             }
