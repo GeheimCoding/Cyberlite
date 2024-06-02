@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![allow(unused)]
 
 use bevy::core::Name;
 use bevy::input::common_conditions::input_toggle_active;
@@ -6,10 +7,70 @@ use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
 use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use rand::{random, thread_rng, Rng};
 use std::ffi::OsStr;
-use std::fs;
+use std::mem::swap;
+use std::{cmp, fs};
+
+type Point = (usize, usize);
+type Grid = Vec<Vec<f32>>;
 
 fn main() {
+    // run_app();
+    let (start, end, grid) = generate_grid(8, 2, true);
+    // TODO: implement Dijkstra algorithm on grid
+    // TODO: show path when rendering?
+    render_grid(&grid);
+}
+
+fn generate_random_point(distance: usize) -> Point {
+    let width = thread_rng().gen_range(0..=distance);
+    (width, distance - width)
+}
+
+fn generate_grid(distance: usize, border: usize, hug_edge: bool) -> (Point, Point, Grid) {
+    let point = generate_random_point(distance);
+    let mut start = (border, border);
+    let mut end = (point.0 + border, point.1 + border);
+
+    let mut rows = end.0 + border + 1;
+    let mut columns = end.1 + border + 1;
+    if thread_rng().gen_bool(0.5) {
+        swap(&mut start.0, &mut end.0);
+    }
+    if hug_edge {
+        if rows > columns {
+            start.0 -= border;
+            end.0 -= border;
+            rows -= border * 2;
+        } else {
+            start.1 -= border;
+            end.1 -= border;
+            columns -= border * 2;
+        }
+    }
+    let mut grid = vec![vec![0.0; columns]; rows];
+    for row in 0..rows {
+        for column in 0..columns {
+            grid[row][column] = thread_rng().gen_range(0.0..1.0);
+        }
+    }
+    grid[start.0][start.1] = 0.0;
+    grid[end.0][end.1] = 0.0;
+
+    (start, end, grid)
+}
+
+fn render_grid(grid: &Grid) {
+    for row in grid {
+        for v in row {
+            print!("{:4.0}", (v * 1000.0).floor());
+        }
+        println!();
+    }
+}
+
+fn run_app() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(
