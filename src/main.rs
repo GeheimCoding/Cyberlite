@@ -5,22 +5,77 @@ use bevy::core::Name;
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
+use bevy::utils::{HashMap, HashSet};
 use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use rand::{random, thread_rng, Rng};
+use rand::{thread_rng, Rng};
+use rand_distr::StandardNormal;
 use std::ffi::OsStr;
+use std::fs;
 use std::mem::swap;
-use std::{cmp, fs};
 
 type Point = (usize, usize);
 type Grid = Vec<Vec<f32>>;
 
 fn main() {
     // run_app();
-    let (start, end, grid) = generate_grid(8, 2, true);
-    // TODO: implement Dijkstra algorithm on grid
+    let (start, end, grid) = generate_grid(16, 2, true);
+    let path = calculate_shortest_path(start, end, &grid);
+
     // TODO: show path when rendering?
     render_grid(&grid);
+    println!("{path:?}");
+}
+
+fn calculate_shortest_path(start: Point, end: Point, grid: &Grid) -> Vec<Point> {
+    let mut queue = vec![(start, 0.0, start)];
+    let mut processed = HashSet::new();
+    let mut path = vec![];
+    while !queue.is_empty() {
+        let (point, distance, previous) = queue.pop().expect("must exist");
+        processed.insert(point);
+        path.push((point, previous));
+        if point == end {
+            break;
+        }
+        let neighbors = get_neighbors(point, grid);
+        for neighbor in neighbors {
+            if processed.contains(&neighbor) {
+                continue;
+            }
+            queue.push((neighbor, distance + grid[neighbor.0][neighbor.1], point));
+        }
+        queue.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("should compare"));
+    }
+    let mut lookup = HashMap::new();
+    for (index, (point, _)) in path.iter().enumerate() {
+        lookup.entry(*point).or_insert(index);
+    }
+    let mut shortest_path = vec![end];
+    let mut point = end;
+    while point != start {
+        point = path[*lookup.get(&point).expect("should exist")].1;
+        shortest_path.push(point);
+    }
+    shortest_path.reverse();
+    shortest_path
+}
+
+fn get_neighbors(point: Point, grid: &Grid) -> Vec<Point> {
+    let mut neighbors = vec![];
+    if point.0 > 0 {
+        neighbors.push((point.0 - 1, point.1));
+    }
+    if point.1 > 0 {
+        neighbors.push((point.0, point.1 - 1));
+    }
+    if point.0 < grid.len() - 1 {
+        neighbors.push((point.0 + 1, point.1));
+    }
+    if point.1 < grid[0].len() - 1 {
+        neighbors.push((point.0, point.1 + 1));
+    }
+    neighbors
 }
 
 fn generate_random_point(distance: usize) -> Point {
@@ -52,7 +107,7 @@ fn generate_grid(distance: usize, border: usize, hug_edge: bool) -> (Point, Poin
     let mut grid = vec![vec![0.0; columns]; rows];
     for row in 0..rows {
         for column in 0..columns {
-            grid[row][column] = thread_rng().gen_range(0.0..1.0);
+            grid[row][column] = thread_rng().sample(StandardNormal);
         }
     }
     grid[start.0][start.1] = 0.0;
@@ -64,7 +119,7 @@ fn generate_grid(distance: usize, border: usize, hug_edge: bool) -> (Point, Poin
 fn render_grid(grid: &Grid) {
     for row in grid {
         for v in row {
-            print!("{:4.0}", (v * 1000.0).floor());
+            print!("{:5.0}", (v * 100.0).floor());
         }
         println!();
     }
