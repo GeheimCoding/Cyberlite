@@ -9,7 +9,8 @@ use bevy::utils::{HashMap, HashSet};
 use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use rand::{thread_rng, Rng};
-use rand_distr::StandardNormal;
+use rand_distr::{Exp1, StandardNormal};
+use std::cmp::PartialEq;
 use std::ffi::OsStr;
 use std::mem::swap;
 use std::{cmp, fs};
@@ -26,7 +27,20 @@ enum Shape {
     ShapeJ,
 }
 
-#[derive(Clone, Copy, Debug)]
+impl Shape {
+    fn to_char(&self) -> char {
+        match self {
+            Shape::Vertical => '|',
+            Shape::Horizontal => '–',
+            Shape::ShapeL => 'L',
+            Shape::Shape7 => '7',
+            Shape::ShapeF => 'F',
+            Shape::ShapeJ => 'J',
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Direction {
     Up,
     Down,
@@ -36,26 +50,89 @@ enum Direction {
 
 fn main() {
     // run_app();
-    let (start, end, grid) = generate_grid(16, 2, true);
+    let (start, end, grid) = generate_grid(8, 2, true);
     let path = calculate_shortest_path(start, end, &grid);
 
-    render_grid(&grid);
-    println!("=====================");
+    // render_grid(&grid);
+    // println!("=====================");
     render_path(&path, (grid.len(), grid[0].len()));
 }
 
 fn render_path(path: &Vec<Point>, (rows, columns): (usize, usize)) {
-    calculate_closest_edge_direction(path[0], (rows, columns));
-    calculate_closest_edge_direction(*path.last().unwrap(), (rows, columns));
-    println!("{path:?} - {rows}x{columns}");
+    let mut incoming = calculate_closest_edge_direction(path[0], (rows, columns));
+    let mut grid = vec![vec![' '; columns]; rows];
+    for index in 0..path.len() - 1 {
+        let outgoing = get_direction(path[index], path[index + 1]);
+        grid[path[index].0][path[index].1] = get_shape(incoming, outgoing).to_char();
+        incoming = outgoing;
+    }
+    let end = *path.last().expect("path must not be empty");
+    let end_direction = calculate_closest_edge_direction(end, (rows, columns));
+    let end_direction = match end_direction {
+        Direction::Up => Direction::Down,
+        Direction::Down => Direction::Up,
+        Direction::Left => Direction::Right,
+        Direction::Right => Direction::Left,
+    };
+    grid[end.0][end.1] = get_shape(incoming, end_direction).to_char();
+
+    for row in grid {
+        for c in row {
+            print!("{c}");
+        }
+        println!();
+    }
+}
+
+fn get_direction(point: Point, next: Point) -> Direction {
+    if next.0 < point.0 {
+        Direction::Up
+    } else if next.0 > point.0 {
+        Direction::Down
+    } else if next.1 < point.1 {
+        Direction::Left
+    } else if next.1 > point.1 {
+        Direction::Right
+    } else {
+        unimplemented!("should not be on top of each other")
+    }
+}
+
+fn get_shape(incoming: Direction, outgoing: Direction) -> Shape {
+    match incoming {
+        Direction::Up => match outgoing {
+            Direction::Up => Shape::Vertical,
+            Direction::Down => unreachable!(),
+            Direction::Left => Shape::Shape7,
+            Direction::Right => Shape::ShapeF,
+        },
+        Direction::Down => match outgoing {
+            Direction::Up => unreachable!(),
+            Direction::Down => Shape::Vertical,
+            Direction::Left => Shape::ShapeJ,
+            Direction::Right => Shape::ShapeL,
+        },
+        Direction::Left => match outgoing {
+            Direction::Up => Shape::ShapeL,
+            Direction::Down => Shape::ShapeF,
+            Direction::Left => Shape::Horizontal,
+            Direction::Right => unreachable!(),
+        },
+        Direction::Right => match outgoing {
+            Direction::Up => Shape::ShapeJ,
+            Direction::Down => Shape::Shape7,
+            Direction::Left => unreachable!(),
+            Direction::Right => Shape::Horizontal,
+        },
+    }
 }
 
 fn calculate_closest_edge_direction(point: Point, (rows, columns): (usize, usize)) -> Direction {
     let mut directions = vec![
-        (point.0, Direction::Up),
-        (rows - point.0, Direction::Down),
-        (point.1, Direction::Left),
-        (columns - point.1, Direction::Right),
+        (point.0, Direction::Down),
+        (rows - point.0, Direction::Up),
+        (point.1, Direction::Right),
+        (columns - point.1, Direction::Left),
     ];
     directions.sort_by(|a, b| a.0.cmp(&b.0));
     directions[0].1
@@ -141,7 +218,7 @@ fn generate_grid(distance: usize, border: usize, hug_edge: bool) -> (Point, Poin
     let mut grid = vec![vec![0.0; columns]; rows];
     for row in 0..rows {
         for column in 0..columns {
-            grid[row][column] = thread_rng().sample(StandardNormal);
+            grid[row][column] = thread_rng().sample::<f32, _>(StandardNormal) + 0.8;
         }
     }
     grid[start.0][start.1] = 0.0;
