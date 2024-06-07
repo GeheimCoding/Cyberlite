@@ -11,20 +11,54 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use rand::{thread_rng, Rng};
 use rand_distr::StandardNormal;
 use std::ffi::OsStr;
-use std::fs;
 use std::mem::swap;
+use std::{cmp, fs};
 
 type Point = (usize, usize);
 type Grid = Vec<Vec<f32>>;
+
+enum Shape {
+    Vertical,
+    Horizontal,
+    ShapeL,
+    Shape7,
+    ShapeF,
+    ShapeJ,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
 
 fn main() {
     // run_app();
     let (start, end, grid) = generate_grid(16, 2, true);
     let path = calculate_shortest_path(start, end, &grid);
 
-    // TODO: show path when rendering?
     render_grid(&grid);
-    println!("{path:?}");
+    println!("=====================");
+    render_path(&path, (grid.len(), grid[0].len()));
+}
+
+fn render_path(path: &Vec<Point>, (rows, columns): (usize, usize)) {
+    calculate_closest_edge_direction(path[0], (rows, columns));
+    calculate_closest_edge_direction(*path.last().unwrap(), (rows, columns));
+    println!("{path:?} - {rows}x{columns}");
+}
+
+fn calculate_closest_edge_direction(point: Point, (rows, columns): (usize, usize)) -> Direction {
+    let mut directions = vec![
+        (point.0, Direction::Up),
+        (rows - point.0, Direction::Down),
+        (point.1, Direction::Left),
+        (columns - point.1, Direction::Right),
+    ];
+    directions.sort_by(|a, b| a.0.cmp(&b.0));
+    directions[0].1
 }
 
 fn calculate_shortest_path(start: Point, end: Point, grid: &Grid) -> Vec<Point> {
@@ -45,7 +79,7 @@ fn calculate_shortest_path(start: Point, end: Point, grid: &Grid) -> Vec<Point> 
             }
             queue.push((neighbor, distance + grid[neighbor.0][neighbor.1], point));
         }
-        queue.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("should compare"));
+        queue.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("must compare"));
     }
     let mut lookup = HashMap::new();
     for (index, (point, _)) in path.iter().enumerate() {
@@ -54,7 +88,7 @@ fn calculate_shortest_path(start: Point, end: Point, grid: &Grid) -> Vec<Point> 
     let mut shortest_path = vec![end];
     let mut point = end;
     while point != start {
-        point = path[*lookup.get(&point).expect("should exist")].1;
+        point = path[*lookup.get(&point).expect("must exist")].1;
         shortest_path.push(point);
     }
     shortest_path.reverse();
